@@ -8,7 +8,7 @@ from numpy_dimensional_utils import (
     periodic_inner_sum,
 )
 
-from parallel_mapped_distance import (
+from dask_client import (
     group_by,
     extract_subproblems,
     generate_uniform_grid,

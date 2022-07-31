@@ -2,7 +2,7 @@ import sys
 
 sys.path.append("src/")
 
-from parallel_mapped_distance import mapped_distance_matrix
+from dask_client import mapped_distance_matrix
 from dask.distributed import Client
 import numpy as np
 

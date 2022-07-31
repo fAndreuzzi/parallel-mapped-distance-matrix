@@ -2,7 +2,7 @@ import sys
 
 sys.path.append("src/")
 
-from numba_parallel_mapped_distance import mapped_distance_matrix
+from numba_loops import mapped_distance_matrix
 import numpy as np
 import numba as nb
 from concurrent.futures import ThreadPoolExecutor, Executor, Future
