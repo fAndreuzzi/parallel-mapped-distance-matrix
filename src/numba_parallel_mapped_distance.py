@@ -176,43 +176,28 @@ def compute_mapped_distance_on_subgroup_nexact_distance(
     `tuple`
     """
 
-    # location of the lower left point of the non-padded bin in terms
-    # of uniform grid cells
-    bin_virtual_lower_left = bin_coords * bins_size
-    # location of the upper right point of the non-padded bin
-    bin_virtual_upper_right = bin_virtual_lower_left + bins_size - 1
+    M, N, D = reference_bin.shape
+    L = len(subgroup_content)
 
-    # translate the subgroup in order to locate it nearby the reference bin
-    # (reminder: the lower left point of the (non-padded) reference bin is
-    # [0,0]).
-    subgroup_content -= bin_virtual_lower_left * uniform_grid_cell_step
+    bin_virtual_lower_left = np.zeros(D)
+    bin_virtual_upper_right = np.zeros(D)
+    for i in range(D):
+        bin_virtual_lower_left[i] = bin_coords[i] * bins_size[i]
+        bin_virtual_upper_right[i] = (
+            bin_virtual_lower_left[i] + bins_size[i] - 1
+        )
 
-    x_grid, y_grid, cmponents = reference_bin.shape
-    x_strides, y_strides, cmponents_strides = reference_bin.strides
-    _reference_bin = np.lib.stride_tricks.as_strided(
-        reference_bin,
-        shape=(x_grid, y_grid, 1, cmponents),
-        strides=(x_strides, y_strides, 0, cmponents_strides),
-    )
-    _subgroup = np.lib.stride_tricks.as_strided(
-        subgroup_content,
-        shape=(1, 1, *subgroup_content.shape),
-        strides=(0, 0, *subgroup_content.strides),
-    )
-
-    distances = np.sqrt(
-        np.sum(np.power(_reference_bin - _subgroup, 2), axis=3)
-    )
-
-    mapped_distance = np.zeros_like(distances[:, :, 0])
-    L, M, N = distances.shape
-
+    mapped_distance = np.zeros((M, N))
     for i in range(L):
+        translated_nup = (
+            subgroup_content[i]
+            - bin_virtual_lower_left * uniform_grid_cell_step
+        )
+
         for j in range(M):
             for k in range(N):
-                mapped_distance[i, j] += (
-                    function(distances[i, j, k]) * weights[k]
-                )
+                d = np.linalg.norm(reference_bin[j, k] - translated_nup)
+                mapped_distance[j, k] += function(d) * weights[i]
 
     add_to_slice(
         global_mapped_distance_matrix,
@@ -246,44 +231,29 @@ def compute_mapped_distance_on_subgroup_exact_distance(
     `tuple`
     """
 
-    # location of the lower left point of the non-padded bin in terms
-    # of uniform grid cells
-    bin_virtual_lower_left = bin_coords * bins_size
-    # location of the upper right point of the non-padded bin
-    bin_virtual_upper_right = bin_virtual_lower_left + bins_size - 1
+    M, N, D = reference_bin.shape
+    L = len(subgroup_content)
 
-    # translate the subgroup in order to locate it nearby the reference bin
-    # (reminder: the lower left point of the (non-padded) reference bin is
-    # [0,0]).
-    subgroup_content -= bin_virtual_lower_left * uniform_grid_cell_step
+    bin_virtual_lower_left = np.zeros(D)
+    bin_virtual_upper_right = np.zeros(D)
+    for i in range(D):
+        bin_virtual_lower_left[i] = bin_coords[i] * bins_size[i]
+        bin_virtual_upper_right[i] = (
+            bin_virtual_lower_left[i] + bins_size[i] - 1
+        )
 
-    x_grid, y_grid, cmponents = reference_bin.shape
-    x_strides, y_strides, cmponents_strides = reference_bin.strides
-    _reference_bin = np.lib.stride_tricks.as_strided(
-        reference_bin,
-        shape=(x_grid, y_grid, 1, cmponents),
-        strides=(x_strides, y_strides, 0, cmponents_strides),
-    )
-    _subgroup = np.lib.stride_tricks.as_strided(
-        subgroup_content,
-        shape=(1, 1, *subgroup_content.shape),
-        strides=(0, 0, *subgroup_content.strides),
-    )
-
-    distances = np.sqrt(
-        np.sum(np.power(_reference_bin - _subgroup, 2), axis=3)
-    )
-
-    mapped_distance = np.zeros_like(distances[:, :, 0])
-    L, M, N = distances.shape
-
+    mapped_distance = np.zeros((M, N))
     for i in range(L):
+        translated_nup = (
+            subgroup_content[i]
+            - bin_virtual_lower_left * uniform_grid_cell_step
+        )
+
         for j in range(M):
             for k in range(N):
-                if distances[i, j, k] < max_distance:
-                    mapped_distance[i, j] += (
-                        function(distances[i, j, k]) * weights[k]
-                    )
+                d = np.linalg.norm(reference_bin[j, k] - translated_nup)
+                if d < max_distance:
+                    mapped_distance[j, k] += function(d) * weights[i]
 
     add_to_slice(
         global_mapped_distance_matrix,
