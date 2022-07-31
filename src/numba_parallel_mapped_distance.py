@@ -152,7 +152,7 @@ def compute_mapped_distance_on_subgroup(
         return compute_mapped_distance_on_subgroup_nexact_distance
 
 
-@nb.jit(nopython=True, fastmath=True, cache=True, nogil=True)
+@nb.jit(nopython=True, fastmath=True, cache=True, nogil=True, parallel=True)
 def compute_mapped_distance_on_subgroup_nexact_distance(
     subgroup_content,
     bin_coords,
@@ -187,17 +187,20 @@ def compute_mapped_distance_on_subgroup_nexact_distance(
             bin_virtual_lower_left[i] + bins_size[i] - 1
         )
 
-    mapped_distance = np.zeros((M, N))
-    for i in range(L):
-        translated_nup = (
-            subgroup_content[i]
-            - bin_virtual_lower_left * uniform_grid_cell_step
-        )
+    offset = -(bin_virtual_lower_left * uniform_grid_cell_step)
 
-        for j in range(M):
-            for k in range(N):
-                d = np.linalg.norm(reference_bin[j, k] - translated_nup)
-                mapped_distance[j, k] += function(d) * weights[i]
+    mapped_distance = np.zeros((M, N))
+    mapped_distances_1d = np.zeros(L)
+    for j in range(M):
+        for k in range(N):
+            uniform_point = reference_bin[j, k]
+            for i in nb.prange(L):
+                translated_nup = subgroup_content[i] + offset
+                d = np.linalg.norm(uniform_point - translated_nup)
+                mapped_distances_1d[i] = function(d) * weights[i]
+
+            mapped_distance[j, k] = np.sum(mapped_distances_1d)
+            mapped_distances_1d = np.zeros(L)
 
     add_to_slice(
         global_mapped_distance_matrix,
@@ -207,7 +210,7 @@ def compute_mapped_distance_on_subgroup_nexact_distance(
     )
 
 
-@nb.jit(nopython=True, fastmath=True, cache=True, nogil=True)
+@nb.jit(nopython=True, fastmath=True, cache=True, nogil=True, parallel=True)
 def compute_mapped_distance_on_subgroup_exact_distance(
     subgroup_content,
     bin_coords,
@@ -242,18 +245,21 @@ def compute_mapped_distance_on_subgroup_exact_distance(
             bin_virtual_lower_left[i] + bins_size[i] - 1
         )
 
-    mapped_distance = np.zeros((M, N))
-    for i in range(L):
-        translated_nup = (
-            subgroup_content[i]
-            - bin_virtual_lower_left * uniform_grid_cell_step
-        )
+    offset = -(bin_virtual_lower_left * uniform_grid_cell_step)
 
-        for j in range(M):
-            for k in range(N):
-                d = np.linalg.norm(reference_bin[j, k] - translated_nup)
+    mapped_distance = np.zeros((M, N))
+    mapped_distances_1d = np.zeros(L)
+    for j in range(M):
+        for k in range(N):
+            uniform_point = reference_bin[j, k]
+            for i in nb.prange(L):
+                translated_nup = subgroup_content[i] + offset
+                d = np.linalg.norm(uniform_point - translated_nup)
                 if d < max_distance:
-                    mapped_distance[j, k] += function(d) * weights[i]
+                    mapped_distances_1d[i] = function(d) * weights[i]
+
+            mapped_distance[j, k] = np.sum(mapped_distances_1d)
+            mapped_distances_1d = np.zeros(L)
 
     add_to_slice(
         global_mapped_distance_matrix,
